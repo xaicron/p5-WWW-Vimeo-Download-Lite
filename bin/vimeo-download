@@ -1,0 +1,123 @@
+#!perl
+
+use strict;
+use warnings;
+use Getopt::Long qw(GetOptions :config bundling);
+use Pod::Usage qw(pod2usage);
+use Encode qw(find_encoding);
+
+use WWW::Vimeo::Download::Lite;
+
+my $verbose = 1;
+GetOptions(
+    'h|help!'      => sub { help() },
+    'm|man!'       => sub { pod2usage(-verbose => 2) },
+    'V|version!'   => sub { show_version() },
+    'encoding|e=s' => \my $encoding,
+    'dir|d=s'      => \my $save_dir,
+    'verbose|v+'   => \$verbose,
+    'quiet|q!'     => sub { $verbose => 0 },
+) or pod2usage(0);
+help() unless @ARGV;
+
+main:{
+    my $client = WWW::Vimeo::Download::Lite->new(
+        encoding      => $encoding,
+        save_dir      => $save_dir,
+        verbose       => $verbose,
+        show_progress => $verbose > 2 ? 1 : 0,
+    );
+    
+    for my $clip_id (@ARGV) {
+        $client->download($clip_id);
+    }
+
+    exit;
+}
+
+sub show_version {
+    printf "vimeo-download (WWW::Vimeo::Download::Lite) version %s\n",
+        $WWW::Vimeo::Download::Lite::VERSION;
+    exit;
+}
+
+sub help {
+    print << 'HELP';
+Usage:
+    vimeo-download [options] clip_id_or_url ...
+
+Options:
+    -o, --output       Output filename, supports `{:param:}` format
+    -e, --encoding     File system encoding, default utf8
+    -q, --quiet        Truns off any messages
+    -h, --help         Display help
+    -m, --man          Display man page
+    -V, --version      Display version
+
+Supported `{:param:}` format are:
+    id / title / width / height / duration / suffix / owner.name
+
+    Default format is:
+        ({:id:}) [{:owner.name:}] {:title:}{:suffix:}
+
+HELP
+}
+
+__END__
+
+=head1 NAME
+
+vimeo-download - Download video(s) from Vimeo
+
+=head1 SYNOPSIS
+
+  $ vimeo-download 39266600
+  $ vimeo-download http://vimeo.com/39266600
+
+=head1 OPTIONS
+
+=over
+
+=item -o, --output
+
+Output filename, supports `{:param:}` format
+
+Supported `{:param:}` format are:
+    id / title / width / height / duration / suffix / owner.name
+
+    Default format is:
+        ({:id:}) [{:owner.name:}] {:title:}{:suffix:}
+
+=item -e, --encoding
+
+File system encoding, default utf8
+
+=item -q, --quiet
+
+Truns off any messages
+
+=item -h, --help
+
+Display help
+
+=item -m, --man
+
+Display man page
+
+=item -V, --version
+
+Display version
+
+=head1 COPYRIGHT
+
+Copyright 2012 - xaicron
+
+=head1 LICENSE
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+=head1 AUTHOR
+
+Yuji Shiamda (xaicron)
+

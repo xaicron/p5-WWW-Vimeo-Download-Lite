@@ -11,6 +11,8 @@ use Carp qw(croak carp);
 use JSON qw(decode_json);
 use File::Basename qw(fileparse);
 use Encode qw(find_encoding decode_utf8);
+use File::Spec ();
+use HTTP::Status ();
 
 use constant IS_WIN32    => $^O eq 'MSWin32';
 use constant IS_MAC      => $^O eq 'darwin';
@@ -19,8 +21,12 @@ use constant fs_encoding => find_encoding IS_WIN32 ? 'cp932' : 'utf8';
 sub new {
     my ($class, %args) = @_;
     $args{agent} ||= __PACKAGE__ .' / '.$VERSION;
+
     my $self = $class->SUPER::new(%args, max_redirect => 0);
-    $self->{verbose} = $args{verbose} ? 1 : 0;
+    $self->{encoding} = $args{encoding} ? find_encoding($args{encoding}) : fs_encoding;
+    $self->{verbose}  = $args{verbose} ? 1 : 0;
+    $self->{save_dir} = $args{save_dir} || '.';
+
     return $self;
 }
 
@@ -48,10 +54,16 @@ sub download {
     my $video_url = $self->res->header('Location');
     my $save_filename = $self->_gen_filename($args{filename}, $video_url, $video_config);
 
-    $self->_puts('getting -> %s ...', $save_filename, $video_url);
+    $self->_puts('Getting -> %s ... ', $save_filename, $video_url);
+    $self->_puts("\n") if $self->{show_progress};
     $self->mirror($video_url, $save_filename);
     $self->_die_if_error;
-    $self->_puts(" done.\n");
+    if ($self->res->code == HTTP::Status::HTTP_NOT_MODIFIED) {
+        $self->_puts("not modified.\n");
+    }
+    else {
+        $self->_puts("done.\n");
+    }
 
     return $video_url;
 }
@@ -140,7 +152,7 @@ sub _normalize_filename {
     IS_MAC   ? $filename =~ tr|/:|\x{ff0f}\x{ff1a}| :
                $filename =~ tr|/|\x{ff0f}|
     ;
-    return fs_encoding->encode($filename);
+    File::Spec->catfile($self->{save_dir}, $self->{encoding}->encode($filename));
 }
 
 1;
@@ -201,7 +213,7 @@ You can specify B<< template >> for filename. The template rules are:
 
   {:parameter_name:}
 
-The L<< parameter_name >> can specify the parameter of the video config. The following values are probably available.
+The C<< parameter_name >> can specify the parameter of the video config. The following values are probably available.
 
   id
   title
